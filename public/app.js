@@ -294,6 +294,15 @@ function isImageUrl(url) {
   }
 }
 
+function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url, document.baseURI);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function appendInlineCode(parent, text) {
   // Process inline code first by splitting on backticks
   const codeParts = text.split('`');
@@ -326,17 +335,25 @@ function appendInlineImagesAndLinks(parent, text) {
       // Markdown image: ![alt](url)
       const alt = match[1] || '';
       const url = match[2];
-      const img = document.createElement('img');
-      img.src = url;
-      img.alt = alt;
-      img.className = 'inline-image';
-      img.loading = 'lazy';
-      parent.append(img);
+      if (isSafeUrl(url)) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = alt;
+        img.className = 'inline-image';
+        img.loading = 'lazy';
+        parent.append(img);
+      } else {
+        // Unsafe URL scheme - render as plain text
+        parent.append(document.createTextNode(match[0]));
+      }
     } else if (match[3] !== undefined && match[4] !== undefined) {
       // Markdown link: [text](url)
       const linkText = match[3];
       const url = match[4];
-      if (isImageUrl(url)) {
+      if (!isSafeUrl(url)) {
+        // Unsafe URL scheme - render as plain text
+        parent.append(document.createTextNode(match[0]));
+      } else if (isImageUrl(url)) {
         // If the link points to an image, render the image
         const img = document.createElement('img');
         img.src = url;
