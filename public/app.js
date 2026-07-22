@@ -15,11 +15,18 @@ const clearSettingsButton = document.querySelector('#clear-settings');
 const configuredIndicator = document.querySelector('#configured-indicator');
 const headerStatus = document.querySelector('#header-status');
 const settingsMessage = document.querySelector('#settings-message');
+const inboundIndicator = document.querySelector('#inbound-indicator');
+const inboundDetails = document.querySelector('#inbound-details');
+const inboundUrl = document.querySelector('#inbound-url');
+const inboundMessage = document.querySelector('#inbound-message');
+const startInboundButton = document.querySelector('#start-inbound');
+const stopInboundButton = document.querySelector('#stop-inbound');
 
 let configured = false;
 let activeController = null;
 let loadingBubble = null;
 let statusTimer = null;
+let lastInboundMessageId = 0;
 
 // Kept separate so prior conversation messages can be added later if desired.
 function buildChatRequest(message) {
@@ -47,12 +54,25 @@ function setConfigured(value) {
 
 async function refreshStatus() {
   try {
-    const data = await api('/api/status');
-    setConfigured(data.configured);
-    if (!data.configured) openSettings();
+    const [status, inbound] = await Promise.all([api('/api/status'), api('/api/inbound/status')]);
+    setConfigured(status.configured);
+    setInboundState(inbound);
+    if (!status.configured) openSettings();
   } catch {
     headerStatus.textContent = 'Local server unavailable';
   }
+}
+
+function setInboundState(state) {
+  const ready = state.status === 'ready';
+  const starting = state.status === 'starting';
+  inboundIndicator.textContent = ready ? 'Ready' : starting ? 'Starting' : 'Stopped';
+  inboundIndicator.classList.toggle('ready', ready);
+  inboundDetails.hidden = !ready;
+  inboundUrl.value = ready ? state.webhookUrl : '';
+  startInboundButton.hidden = ready || starting;
+  startInboundButton.disabled = starting;
+  stopInboundButton.hidden = !ready && !starting;
 }
 
 function openSettings() {
@@ -99,6 +119,69 @@ clearSettingsButton.addEventListener('click', async () => {
     settingsMessage.textContent = error.message;
   }
 });
+
+startInboundButton.addEventListener('click', async () => {
+  inboundMessage.textContent = 'Starting Cloudflare Tunnel…';
+  startInboundButton.disabled = true;
+  try {
+    const state = await api('/api/inbound/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    setInboundState(state);
+    inboundMessage.textContent = 'External webhook is ready. Add the URL to your Macroscope Macro.';
+  } catch (error) {
+    inboundMessage.textContent = error.message;
+    startInboundButton.disabled = false;
+  }
+});
+
+stopInboundButton.addEventListener('click', async () => {
+  inboundMessage.textContent = 'Stopping tunnel…';
+  stopInboundButton.disabled = true;
+  try {
+    const state = await api('/api/inbound/tunnel', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}',
+    });
+    setInboundState(state);
+    inboundMessage.textContent = 'External webhook stopped and its URL was revoked.';
+  } catch (error) {
+    inboundMessage.textContent = error.message;
+  } finally {
+    stopInboundButton.disabled = false;
+  }
+});
+
+document.querySelectorAll('[data-copy-target]').forEach((button) => {
+  button.addEventListener('click', async () => {
+    const field = document.querySelector(`#${button.dataset.copyTarget}`);
+    try {
+      await navigator.clipboard.writeText(field.value);
+      const previous = button.textContent;
+      button.textContent = 'Copied';
+      setTimeout(() => { button.textContent = previous; }, 1200);
+    } catch {
+      inboundMessage.textContent = 'Could not copy automatically. Select and copy the value manually.';
+    }
+  });
+});
+
+async function pollInboundMessages() {
+  try {
+    const data = await api(`/api/inbound/messages?after=${lastInboundMessageId}`);
+    setInboundState(data.tunnel);
+    for (const message of data.messages) {
+      lastInboundMessageId = Math.max(lastInboundMessageId, message.id);
+      addSystemMessage('Received via external webhook');
+      addMessage(message.response, 'assistant');
+    }
+  } catch {
+    // A later poll will retry when the local server is available again.
+  }
+}
 
 messageInput.addEventListener('keydown', (event) => {
   if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
@@ -504,3 +587,5 @@ function appendCodeBlock(parent, codeText, language) {
 }
 
 refreshStatus();
+pollInboundMessages();
++setTimeout(function poll() { pollInboundMessages().finally(() => setTimeout(poll, 2_000)); }, 2_000);
