@@ -236,20 +236,57 @@ function renderSafeMarkdown(container, source) {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   let index = 0;
   while (index < lines.length) {
-    if (lines[index].startsWith('```')) {
-      const language = lines[index].slice(3).trim();
+    const fence = lines[index].match(/^\s*```([^`]*)$/);
+    if (fence) {
+      const language = fence[1].trim();
       const codeLines = [];
       index += 1;
-      while (index < lines.length && !lines[index].startsWith('```')) codeLines.push(lines[index++]);
+      while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) codeLines.push(lines[index++]);
       if (index < lines.length) index += 1;
       appendCodeBlock(container, codeLines.join('\n'), language);
       continue;
     }
-    if (/^\s*[-*]\s+/.test(lines[index])) {
+    const heading = lines[index].match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (heading) {
+      const element = document.createElement(`h${heading[1].length}`);
+      appendInlineMarkdown(element, heading[2]);
+      container.append(element);
+      index += 1;
+      continue;
+    }
+    if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(lines[index])) {
+      container.append(document.createElement('hr'));
+      index += 1;
+      continue;
+    }
+    if (/^\s*>\s?/.test(lines[index])) {
+      const quote = document.createElement('blockquote');
+      const quoteLines = [];
+      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+        quoteLines.push(lines[index].replace(/^\s*>\s?/, ''));
+        index += 1;
+      }
+      renderSafeMarkdown(quote, quoteLines.join('\n'));
+      container.append(quote);
+      continue;
+    }
+    if (/^\s*[-+*]\s+/.test(lines[index])) {
       const list = document.createElement('ul');
-      while (index < lines.length && /^\s*[-*]\s+/.test(lines[index])) {
+      while (index < lines.length && /^\s*[-+*]\s+/.test(lines[index])) {
         const item = document.createElement('li');
-        appendInlineCode(item, lines[index].replace(/^\s*[-*]\s+/, ''));
+        const itemText = lines[index].replace(/^\s*[-+*]\s+/, '');
+        const task = itemText.match(/^\[([ xX])\]\s+(.*)$/);
+        if (task) {
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = task[1].toLowerCase() === 'x';
+          checkbox.disabled = true;
+          item.className = 'task-list-item';
+          item.append(checkbox);
+          appendInlineMarkdown(item, task[2]);
+        } else {
+          appendInlineMarkdown(item, itemText);
+        }
         list.append(item);
         index += 1;
       }
@@ -260,7 +297,7 @@ function renderSafeMarkdown(container, source) {
       const list = document.createElement('ol');
       while (index < lines.length && /^\s*\d+[.)]\s+/.test(lines[index])) {
         const item = document.createElement('li');
-        appendInlineCode(item, lines[index].replace(/^\s*\d+[.)]\s+/, ''));
+        appendInlineMarkdown(item, lines[index].replace(/^\s*\d+[.)]\s+/, ''));
         list.append(item);
         index += 1;
       }
@@ -268,15 +305,15 @@ function renderSafeMarkdown(container, source) {
       continue;
     }
     const paragraphLines = [];
-    while (index < lines.length && lines[index] && !lines[index].startsWith('```') &&
-      !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+[.)]\s+/.test(lines[index])) {
+    while (index < lines.length && lines[index] && !/^\s*```/.test(lines[index]) &&
+      !/^\s*(?:#{1,6}\s+|>\s?|[-+*]\s+|\d+[.)]\s+|(?:-{3,}|\*{3,}|_{3,})\s*$)/.test(lines[index])) {
       paragraphLines.push(lines[index++]);
     }
     if (paragraphLines.length) {
       const paragraph = document.createElement('p');
       paragraphLines.forEach((line, lineIndex) => {
         if (lineIndex) paragraph.append(document.createElement('br'));
-        appendInlineCode(paragraph, line);
+        appendInlineMarkdown(paragraph, line);
       });
       container.append(paragraph);
     } else {
@@ -285,17 +322,48 @@ function renderSafeMarkdown(container, source) {
   }
 }
 
-function appendInlineCode(parent, text) {
-  const parts = text.split('`');
-  parts.forEach((part, index) => {
-    if (index % 2 === 1) {
-      const code = document.createElement('code');
-      code.textContent = part;
-      parent.append(code);
+function appendInlineMarkdown(parent, text) {
+  const tokenPattern = /(`+)([\s\S]*?)\1|\[([^\]]+)\]\(([^\s)]+)(?:\s+["']([^"']*)["'])?\)|(\*\*|__)(.+?)\6|(~~)(.+?)\8|(?<!\w)(\*|_)(?!\s)(.+?)(?<!\s)\10(?!\w)/;
+  const match = tokenPattern.exec(text);
+  if (!match) {
+    parent.append(document.createTextNode(text.replace(/\\([\\`*_[\]{}()#+.!>~-])/g, '$1')));
+    return;
+  }
+
+  if (match.index) appendInlineMarkdown(parent, text.slice(0, match.index));
+  if (match[1]) {
+    const code = document.createElement('code');
+    code.textContent = match[2];
+    parent.append(code);
+  } else if (match[3]) {
+    const href = safeMarkdownUrl(match[4]);
+    if (href) {
+      const link = document.createElement('a');
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      if (match[5]) link.title = match[5];
+      appendInlineMarkdown(link, match[3]);
+      parent.append(link);
     } else {
-      parent.append(document.createTextNode(part));
+      parent.append(document.createTextNode(match[0]));
     }
-  });
+  } else {
+    const element = document.createElement(match[6] ? 'strong' : match[8] ? 'del' : 'em');
+    appendInlineMarkdown(element, match[7] || match[9] || match[11]);
+    parent.append(element);
+  }
+  appendInlineMarkdown(parent, text.slice(match.index + match[0].length));
+}
+
+function safeMarkdownUrl(value) {
+  try {
+    const url = new URL(value, window.location.href);
+    if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
 }
 
 function appendCodeBlock(parent, codeText, language) {

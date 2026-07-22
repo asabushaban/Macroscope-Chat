@@ -51,7 +51,20 @@ h1 { font-size: 1.15rem; margin: 0; letter-spacing: -.01em; }
 .bubble.error { color: #7e2828; background: #fff0f0; border: 1px solid #f1cccc; }
 .bubble p { margin: 0 0 .65rem; }
 .bubble p:last-child { margin-bottom: 0; }
+.bubble h1, .bubble h2, .bubble h3, .bubble h4, .bubble h5, .bubble h6 { margin: .85rem 0 .4rem; line-height: 1.25; }
+.bubble h1:first-child, .bubble h2:first-child, .bubble h3:first-child { margin-top: 0; }
+.bubble h1 { font-size: 1.35rem; }
+.bubble h2 { font-size: 1.2rem; }
+.bubble h3 { font-size: 1.08rem; }
+.bubble h4, .bubble h5, .bubble h6 { font-size: 1rem; }
 .bubble ul, .bubble ol { margin: .25rem 0 .7rem; padding-left: 1.35rem; }
+.bubble blockquote { margin: .65rem 0; padding: .1rem 0 .1rem .8rem; border-left: 3px solid #aeb8c3; color: #4f5c69; }
+.bubble blockquote > :last-child { margin-bottom: 0; }
+.bubble hr { border: 0; border-top: 1px solid #ccd3da; margin: .9rem 0; }
+.bubble a { color: #1d51c8; text-decoration-thickness: .08em; text-underline-offset: .12em; }
+.bubble a:hover { color: #153d98; }
+.bubble .task-list-item { list-style: none; margin-left: -1.15rem; }
+.bubble .task-list-item input { margin: 0 .45rem 0 0; accent-color: var(--accent); }
 .bubble code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; background: rgb(20 30 40 / 8%); padding: .1em .25em; border-radius: 4px; }
 .system-message { text-align: center; color: var(--muted); font-size: .8rem; margin: 1rem; }
 

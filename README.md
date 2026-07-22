@@ -47,10 +47,22 @@ Each chat message is independent. The local server sends the message to the conf
 
 If your webhook expects a different body field or extra context, edit the `buildTriggerPayload()` function in `server.js`. That function is intentionally the single payload customization point.
 
+## Markdown responses
+
+Assistant responses are rendered as safe Markdown. Supported formatting includes:
+
+- Headings, paragraphs, and horizontal rules
+- Bold, italic, strikethrough, and inline code
+- Ordered, unordered, and task lists
+- Blockquotes and links
+- Fenced code blocks with language labels and a copy button
+
+Raw HTML is displayed as text rather than injected into the page. Links are limited to HTTP, HTTPS, and email URLs and open in a new tab with opener access disabled.
+
 ## Known limitations
 
 - One request can run at a time in each browser page.
 - Conversation history exists only in page memory and is not sent with later requests.
 - Restarting Node clears credentials and refreshing clears the displayed chat.
-- The response formatter supports common paragraphs, lists, inline code, and fenced code blocks, but is not a complete Markdown implementation.
+- The response formatter supports common Markdown syntax, but is not a complete CommonMark implementation (for example, tables and nested lists are not supported).
 - This is a lightweight local client, not a hardened production authentication service or multi-user application.
