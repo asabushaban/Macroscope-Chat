@@ -521,4 +521,4 @@ function appendCodeBlock(parent, codeText, language) {
 
 refreshStatus();
 pollInboundMessages();
-setInterval(pollInboundMessages, 2_000);
++setTimeout(function poll() { pollInboundMessages().finally(() => setTimeout(poll, 2_000)); }, 2_000);
