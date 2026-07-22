@@ -89,7 +89,6 @@ function publicInboundState() {
     webhookUrl: inboundTunnel.publicUrl
       ? `${inboundTunnel.publicUrl}/hooks/${inboundTunnel.pathToken}`
       : undefined,
-    webhookSecret: inboundTunnel.secret,
   };
 }
 
@@ -107,8 +106,7 @@ function startInboundTunnel() {
   });
   inboundTunnel = {
     child,
-    pathToken: randomToken(18),
-    secret: randomToken(32),
+    pathToken: randomToken(32),
     publicUrl: '',
   };
 
@@ -405,10 +403,6 @@ async function handleInboundWebhook(req, res, pathToken) {
     return sendJson(res, 404, { error: 'Webhook endpoint not found.' });
   }
   if (req.method !== 'POST') return sendJson(res, 405, { error: 'Method not allowed.' });
-  const providedSecret = req.headers['x-webhook-secret'];
-  if (!secretsMatch(providedSecret, current.secret)) {
-    return sendJson(res, 401, { error: 'Webhook secret was rejected.' });
-  }
   const body = await readJsonBody(req);
   const message = {
     id: nextInboundMessageId++,

@@ -18,7 +18,6 @@ const settingsMessage = document.querySelector('#settings-message');
 const inboundIndicator = document.querySelector('#inbound-indicator');
 const inboundDetails = document.querySelector('#inbound-details');
 const inboundUrl = document.querySelector('#inbound-url');
-const inboundSecret = document.querySelector('#inbound-secret');
 const inboundMessage = document.querySelector('#inbound-message');
 const startInboundButton = document.querySelector('#start-inbound');
 const stopInboundButton = document.querySelector('#stop-inbound');
@@ -71,7 +70,6 @@ function setInboundState(state) {
   inboundIndicator.classList.toggle('ready', ready);
   inboundDetails.hidden = !ready;
   inboundUrl.value = ready ? state.webhookUrl : '';
-  inboundSecret.value = ready ? state.webhookSecret : '';
   startInboundButton.hidden = ready || starting;
   startInboundButton.disabled = starting;
   stopInboundButton.hidden = !ready && !starting;
@@ -132,7 +130,7 @@ startInboundButton.addEventListener('click', async () => {
       body: '{}',
     });
     setInboundState(state);
-    inboundMessage.textContent = 'External webhook is ready. Add the URL and secret to your agent.';
+    inboundMessage.textContent = 'External webhook is ready. Add the URL to your Macroscope Macro.';
   } catch (error) {
     inboundMessage.textContent = error.message;
     startInboundButton.disabled = false;
@@ -149,7 +147,7 @@ stopInboundButton.addEventListener('click', async () => {
       body: '{}',
     });
     setInboundState(state);
-    inboundMessage.textContent = 'External webhook stopped and its credentials were revoked.';
+    inboundMessage.textContent = 'External webhook stopped and its URL was revoked.';
   } catch (error) {
     inboundMessage.textContent = error.message;
   } finally {

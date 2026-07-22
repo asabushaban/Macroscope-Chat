@@ -56,20 +56,19 @@ The app can create a temporary public webhook for an agent or service to post re
 brew install cloudflared
 ```
 
-Open **Settings**, find **External webhook**, and choose **Generate External URL**. The app starts a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/) to a dedicated local webhook listener. Copy both the generated URL and `X-Webhook-Secret` into the sending agent.
+Open **Settings**, find **External webhook**, and choose **Generate External URL**. The app starts a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/do-more-with-tunnels/trycloudflare/) to a dedicated local webhook listener. Copy the generated URL into the Macroscope Macro's webhook destination field. No custom header is required.
 
 Send a JSON object using one of the `response`, `message`, `content`, or `text` fields:
 
 ```bash
 curl -X POST "https://example.trycloudflare.com/hooks/example" \
   -H "Content-Type: application/json" \
-  -H "X-Webhook-Secret: generated-secret" \
   -d '{"response":"Completed the requested task."}'
 ```
 
-Incoming responses appear in the open chat page within a few seconds. The generated URL and secret are kept only in memory. **Stop & Revoke** terminates the tunnel and invalidates both values. Quick Tunnel URLs are temporary, work only while this app is running, and are intended for development rather than production.
+Incoming responses appear in the open chat page within a few seconds. The generated URL contains a long random credential and must be treated like a password. It is kept only in memory. **Stop & Revoke** terminates the tunnel and invalidates the URL. Quick Tunnel URLs are temporary, work only while this app is running, and are intended for development rather than production.
 
-Only the dedicated webhook listener is tunneled; the settings and chat-control APIs remain on the local-only application server. The listener requires the unguessable URL path and secret header, limits request sizes, and treats received content as untrusted display data.
+Only the dedicated webhook listener is tunneled; the settings and chat-control APIs remain on the local-only application server. The listener requires a 256-bit random URL credential, limits request sizes, and treats received content as untrusted display data.
 
 ## Known limitations
 
