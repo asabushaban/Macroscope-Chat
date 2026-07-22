@@ -321,7 +321,7 @@ function appendInlineCode(parent, text) {
 
 function appendInlineImagesAndLinks(parent, text) {
   // Pattern to match markdown images ![alt](url), markdown links [text](url), and plain URLs
-  const combinedPattern = /!\[([^\]]*)\]\(([^)]+)\)|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\]()]*)/g;
+  const combinedPattern = /!\[([^\]]*)\]\(([^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)\)|\[([^\]]+)\]\(([^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)\)|(https?:\/\/[^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)/g;
   let lastIndex = 0;
   let match;
 
