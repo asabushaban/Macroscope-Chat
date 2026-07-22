@@ -287,7 +287,7 @@ function renderSafeMarkdown(container, source) {
 
 function isImageUrl(url) {
   try {
-    const pathname = new URL(url).pathname.toLowerCase();
+    const pathname = new URL(url, document.baseURI).pathname.toLowerCase();
     return /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/.test(pathname);
   } catch {
     return false;
