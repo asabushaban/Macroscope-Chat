@@ -370,8 +370,15 @@ function appendInlineImagesAndLinks(parent, text) {
         parent.append(link);
       }
     } else if (match[5]) {
-      // Plain URL
-      const url = match[5];
+      // Plain URL - strip trailing sentence punctuation
+      let url = match[5];
+      let strippedCount = 0;
+      const trailingPunctuation = /[.,;:!?)\]}"']+$/;
+      const punctMatch = url.match(trailingPunctuation);
+      if (punctMatch) {
+        strippedCount = punctMatch[0].length;
+        url = url.slice(0, -strippedCount);
+      }
       if (isImageUrl(url)) {
         const img = document.createElement('img');
         img.src = url;
@@ -387,6 +394,8 @@ function appendInlineImagesAndLinks(parent, text) {
         link.rel = 'noopener noreferrer';
         parent.append(link);
       }
+      lastIndex = match.index + match[0].length - strippedCount;
+      continue;
     }
 
     lastIndex = match.index + match[0].length;
