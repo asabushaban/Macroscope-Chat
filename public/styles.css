@@ -53,6 +53,11 @@ h1 { font-size: 1.15rem; margin: 0; letter-spacing: -.01em; }
 .bubble p:last-child { margin-bottom: 0; }
 .bubble ul, .bubble ol { margin: .25rem 0 .7rem; padding-left: 1.35rem; }
 .bubble code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; background: rgb(20 30 40 / 8%); padding: .1em .25em; border-radius: 4px; }
+.bubble a { color: var(--accent); text-decoration: underline; word-break: break-all; }
+.bubble a:hover { color: var(--accent-dark); }
+.bubble .inline-image { display: block; max-width: 100%; height: auto; border-radius: 8px; margin: .5rem 0; }
+.bubble .inline-image:first-child { margin-top: 0; }
+.bubble .inline-image:last-child { margin-bottom: 0; }
 .system-message { text-align: center; color: var(--muted); font-size: .8rem; margin: 1rem; }
 
 .code-block { margin: .7rem 0; border-radius: 9px; overflow: hidden; background: #19202a; color: #eef2f6; }

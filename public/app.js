@@ -285,17 +285,126 @@ function renderSafeMarkdown(container, source) {
   }
 }
 
+function isImageUrl(url) {
+  try {
+    const pathname = new URL(url, document.baseURI).pathname.toLowerCase();
+    return /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
+function isSafeUrl(url) {
+  try {
+    const parsed = new URL(url, document.baseURI);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function appendInlineCode(parent, text) {
-  const parts = text.split('`');
-  parts.forEach((part, index) => {
+  // Process inline code first by splitting on backticks
+  const codeParts = text.split('`');
+  codeParts.forEach((part, index) => {
     if (index % 2 === 1) {
+      // Inside backticks - render as code
       const code = document.createElement('code');
       code.textContent = part;
       parent.append(code);
     } else {
-      parent.append(document.createTextNode(part));
+      // Outside backticks - process for images and links
+      appendInlineImagesAndLinks(parent, part);
     }
   });
+}
+
+function appendInlineImagesAndLinks(parent, text) {
+  // Pattern to match markdown images ![alt](url), markdown links [text](url), and plain URLs
+  const combinedPattern = /!\[([^\]]*)\]\(([^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)\)|\[([^\]]+)\]\(([^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)\)|(https?:\/\/[^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = combinedPattern.exec(text)) !== null) {
+    // Append text before the match
+    if (match.index > lastIndex) {
+      parent.append(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+
+    if (match[1] !== undefined || match[2] !== undefined) {
+      // Markdown image: ![alt](url)
+      const alt = match[1] || '';
+      const url = match[2];
+      if (isSafeUrl(url)) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = alt;
+        img.className = 'inline-image';
+        img.loading = 'lazy';
+        parent.append(img);
+      } else {
+        // Unsafe URL scheme - render as plain text
+        parent.append(document.createTextNode(match[0]));
+      }
+    } else if (match[3] !== undefined && match[4] !== undefined) {
+      // Markdown link: [text](url)
+      const linkText = match[3];
+      const url = match[4];
+      if (!isSafeUrl(url)) {
+        // Unsafe URL scheme - render as plain text
+        parent.append(document.createTextNode(match[0]));
+      } else if (isImageUrl(url)) {
+        // If the link points to an image, render the image
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = linkText;
+        img.className = 'inline-image';
+        img.loading = 'lazy';
+        parent.append(img);
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.textContent = linkText;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        parent.append(link);
+      }
+    } else if (match[5]) {
+      // Plain URL - strip trailing sentence punctuation
+      let url = match[5];
+      let strippedCount = 0;
+      const trailingPunctuation = /[.,;:!?)\]}"']+$/;
+      const punctMatch = url.match(trailingPunctuation);
+      if (punctMatch) {
+        strippedCount = punctMatch[0].length;
+        url = url.slice(0, -strippedCount);
+      }
+      if (isImageUrl(url)) {
+        const img = document.createElement('img');
+        img.src = url;
+        img.alt = 'Image';
+        img.className = 'inline-image';
+        img.loading = 'lazy';
+        parent.append(img);
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.textContent = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        parent.append(link);
+      }
+      lastIndex = match.index + match[0].length - strippedCount;
+      continue;
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Append remaining text after the last match
+  if (lastIndex < text.length) {
+    parent.append(document.createTextNode(text.slice(lastIndex)));
+  }
 }
 
 function appendCodeBlock(parent, codeText, language) {
