@@ -323,46 +323,154 @@ function renderSafeMarkdown(container, source) {
 }
 
 function appendInlineMarkdown(parent, text) {
-  const tokenPattern = /(`+)([\s\S]*?)\1|\[([^\]]+)\]\(([^\s)]+)(?:\s+["']([^"']*)["'])?\)|(\*\*|__)(.+?)\6|(~~)(.+?)\8|(?<!\w)(\*|_)(?!\s)(.+?)(?<!\s)\10(?!\w)/;
+  const tokenPattern = /(?<codeMark>`+)(?<codeText>[\s\S]*?)\k<codeMark>|!\[(?<imageAlt>[^\]]*)\]\((?<imageUrl>[^\s)]+)\)|\[(?<linkText>[^\]]+)\]\((?<linkUrl>[^\s)]+)(?:\s+["'](?<linkTitle>[^"']*)["'])?\)|(?<strongMark>\*\*|__)(?<strongText>.+?)\k<strongMark>|(?<strikeMark>~~)(?<strikeText>.+?)\k<strikeMark>|(?<!\w)(?<emMark>\*|_)(?!\s)(?<emText>.+?)(?<!\s)\k<emMark>(?!\w)/;
   const match = tokenPattern.exec(text);
   if (!match) {
-    parent.append(document.createTextNode(text.replace(/\\([\\`*_[\]{}()#+.!>~-])/g, '$1')));
+    appendInlineImagesAndLinks(parent, text.replace(/\\([\\`*_[\]{}()#+.!>~-])/g, '$1'));
     return;
   }
 
   if (match.index) appendInlineMarkdown(parent, text.slice(0, match.index));
-  if (match[1]) {
+  const token = match.groups;
+  if (token.codeMark) {
     const code = document.createElement('code');
-    code.textContent = match[2];
+    code.textContent = token.codeText;
     parent.append(code);
-  } else if (match[3]) {
-    const href = safeMarkdownUrl(match[4]);
+  } else if (token.imageUrl) {
+    const src = safeMarkdownUrl(token.imageUrl, false);
+    if (src) appendInlineImage(parent, src, token.imageAlt || 'Image');
+    else parent.append(document.createTextNode(match[0]));
+  } else if (token.linkUrl) {
+    const href = safeMarkdownUrl(token.linkUrl, true);
     if (href) {
-      const link = document.createElement('a');
-      link.href = href;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      if (match[5]) link.title = match[5];
-      appendInlineMarkdown(link, match[3]);
-      parent.append(link);
+      if (isImageUrl(href)) {
+        appendInlineImage(parent, href, token.linkText);
+      } else {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        if (token.linkTitle) link.title = token.linkTitle;
+        appendInlineMarkdown(link, token.linkText);
+        parent.append(link);
+      }
     } else {
       parent.append(document.createTextNode(match[0]));
     }
   } else {
-    const element = document.createElement(match[6] ? 'strong' : match[8] ? 'del' : 'em');
-    appendInlineMarkdown(element, match[7] || match[9] || match[11]);
+    const element = document.createElement(token.strongMark ? 'strong' : token.strikeMark ? 'del' : 'em');
+    appendInlineMarkdown(element, token.strongText || token.strikeText || token.emText);
     parent.append(element);
   }
   appendInlineMarkdown(parent, text.slice(match.index + match[0].length));
 }
 
-function safeMarkdownUrl(value) {
+function safeMarkdownUrl(value, allowEmail = false) {
   try {
-    const url = new URL(value, window.location.href);
-    if (!['http:', 'https:', 'mailto:'].includes(url.protocol)) return null;
+    const url = new URL(value, document.baseURI);
+    const protocols = allowEmail ? ['http:', 'https:', 'mailto:'] : ['http:', 'https:'];
+    if (!protocols.includes(url.protocol)) return null;
     return url.href;
   } catch {
     return null;
+  }
+}
+
+function isImageUrl(url) {
+  try {
+    const pathname = new URL(url, document.baseURI).pathname.toLowerCase();
+    return /\.(png|jpe?g|gif|webp|svg|bmp|ico|avif)$/.test(pathname);
+  } catch {
+    return false;
+  }
+}
+
+function appendInlineImage(parent, src, alt) {
+  const image = document.createElement('img');
+  image.src = src;
+  image.alt = alt;
+  image.className = 'inline-image';
+  image.loading = 'lazy';
+  parent.append(image);
+}
+
+function appendInlineImagesAndLinks(parent, text) {
+  // Pattern to match markdown images ![alt](url), markdown links [text](url), and plain URLs
+  const combinedPattern = /!\[([^\]]*)\]\(([^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)\)|\[([^\]]+)\]\(([^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)\)|(https?:\/\/[^\s<>[\]()]+(?:\([^\s<>[\]()]*\))?[^\s<>[\()]*)/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = combinedPattern.exec(text)) !== null) {
+    // Append text before the match
+    if (match.index > lastIndex) {
+      parent.append(document.createTextNode(text.slice(lastIndex, match.index)));
+    }
+
+    if (match[1] !== undefined || match[2] !== undefined) {
+      // Markdown image: ![alt](url)
+      const alt = match[1] || '';
+      const url = match[2];
+      const src = safeMarkdownUrl(url);
+      if (src) {
+        appendInlineImage(parent, src, alt);
+      } else {
+        // Unsafe URL scheme - render as plain text
+        parent.append(document.createTextNode(match[0]));
+      }
+    } else if (match[3] !== undefined && match[4] !== undefined) {
+      // Markdown link: [text](url)
+      const linkText = match[3];
+      const url = match[4];
+      const href = safeMarkdownUrl(url, true);
+      if (!href) {
+        // Unsafe URL scheme - render as plain text
+        parent.append(document.createTextNode(match[0]));
+      } else if (isImageUrl(href)) {
+        // If the link points to an image, render the image
+        const img = document.createElement('img');
+        img.src = href;
+        img.alt = linkText;
+        img.className = 'inline-image';
+        img.loading = 'lazy';
+        parent.append(img);
+      } else {
+        const link = document.createElement('a');
+        link.href = href;
+        link.textContent = linkText;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        parent.append(link);
+      }
+    } else if (match[5]) {
+      // Plain URL - strip trailing sentence punctuation
+      let url = match[5];
+      let strippedCount = 0;
+      const trailingPunctuation = /[.,;:!?)\]}"']+$/;
+      const punctMatch = url.match(trailingPunctuation);
+      if (punctMatch) {
+        strippedCount = punctMatch[0].length;
+        url = url.slice(0, -strippedCount);
+      }
+      if (isImageUrl(url)) {
+        appendInlineImage(parent, url, 'Image');
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.textContent = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        parent.append(link);
+      }
+      lastIndex = match.index + match[0].length - strippedCount;
+      continue;
+    }
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // Append remaining text after the last match
+  if (lastIndex < text.length) {
+    parent.append(document.createTextNode(text.slice(lastIndex)));
   }
 }
 
