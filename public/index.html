@@ -32,6 +32,29 @@
           <button id="clear-settings" class="secondary danger" type="button">Clear Credentials</button>
         </div>
         <p id="settings-message" class="form-message" role="status"></p>
+
+        <div class="webhook-settings">
+          <div class="settings-heading">
+            <div>
+              <h2>External webhook</h2>
+              <p>Receive agent responses through a temporary Cloudflare URL.</p>
+            </div>
+            <span id="inbound-indicator" class="indicator">Stopped</span>
+          </div>
+          <div id="inbound-details" hidden>
+            <label for="inbound-url">Webhook URL</label>
+            <div class="copy-field">
+              <input id="inbound-url" type="text" readonly>
+              <button class="secondary" type="button" data-copy-target="inbound-url">Copy</button>
+            </div>
+          </div>
+          <p class="privacy-note">Development only. Treat the generated URL like a password. It works while this app and its tunnel are running. Incoming JSON may use <code>response</code>, <code>message</code>, <code>content</code>, or <code>text</code>.</p>
+          <div class="settings-actions">
+            <button id="start-inbound" type="button">Generate External URL</button>
+            <button id="stop-inbound" class="secondary danger" type="button" hidden>Stop &amp; Revoke</button>
+          </div>
+          <p id="inbound-message" class="form-message" role="status"></p>
+        </div>
       </form>
     </section>
 
