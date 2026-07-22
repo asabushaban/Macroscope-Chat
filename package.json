@@ -1,0 +1,12 @@
+{
+  "name": "macroscope-chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A lightweight local chat client for Macroscope Agent Webhooks",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

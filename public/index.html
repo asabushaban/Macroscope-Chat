@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Macroscope Chat</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <h1>Macroscope Chat</h1>
+        <p id="header-status">Checking configuration…</p>
+      </div>
+      <button id="settings-toggle" class="secondary" type="button" aria-expanded="false" aria-controls="settings-panel">Settings</button>
+    </header>
+
+    <section id="settings-panel" class="settings" hidden>
+      <form id="settings-form">
+        <div class="settings-heading">
+          <h2>Connection settings</h2>
+          <span id="configured-indicator" class="indicator">Not configured</span>
+        </div>
+        <label for="webhook-url">Macroscope webhook URL</label>
+        <input id="webhook-url" name="webhookUrl" type="url" inputmode="url" placeholder="https://example.com/webhook" autocomplete="off" required>
+        <label for="api-token">Macroscope webhook API key</label>
+        <input id="api-token" name="apiToken" type="password" placeholder="Enter API key" autocomplete="off" required>
+        <p class="privacy-note">Saved only in this Node process. The token is never returned to the browser.</p>
+        <div class="settings-actions">
+          <button type="submit">Save for Session</button>
+          <button id="clear-settings" class="secondary danger" type="button">Clear Credentials</button>
+        </div>
+        <p id="settings-message" class="form-message" role="status"></p>
+      </form>
+    </section>
+
+    <section id="conversation" class="conversation" aria-live="polite" aria-label="Conversation">
+      <div class="welcome">
+        <h2>Ask Macroscope</h2>
+        <p>Each message starts a new, independent request.</p>
+      </div>
+    </section>
+
+    <footer class="composer">
+      <p id="request-status" class="request-status" role="status"></p>
+      <form id="chat-form">
+        <label class="sr-only" for="message-input">Message</label>
+        <textarea id="message-input" rows="2" maxlength="20000" placeholder="Type your question or request…" required></textarea>
+        <div class="composer-actions">
+          <button id="cancel-button" class="secondary" type="button" hidden>Cancel</button>
+          <button id="send-button" type="submit">Send</button>
+        </div>
+      </form>
+      <p class="input-hint">Enter to send · Shift+Enter for a new line</p>
+    </footer>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
