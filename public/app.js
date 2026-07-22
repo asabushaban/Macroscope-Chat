@@ -319,20 +319,57 @@ function renderSafeMarkdown(container, source) {
   const lines = source.replace(/\r\n?/g, '\n').split('\n');
   let index = 0;
   while (index < lines.length) {
-    if (lines[index].startsWith('```')) {
-      const language = lines[index].slice(3).trim();
+    const fence = lines[index].match(/^\s*```([^`]*)$/);
+    if (fence) {
+      const language = fence[1].trim();
       const codeLines = [];
       index += 1;
-      while (index < lines.length && !lines[index].startsWith('```')) codeLines.push(lines[index++]);
+      while (index < lines.length && !/^\s*```\s*$/.test(lines[index])) codeLines.push(lines[index++]);
       if (index < lines.length) index += 1;
       appendCodeBlock(container, codeLines.join('\n'), language);
       continue;
     }
-    if (/^\s*[-*]\s+/.test(lines[index])) {
+    const heading = lines[index].match(/^\s*(#{1,6})\s+(.+?)\s*#*\s*$/);
+    if (heading) {
+      const element = document.createElement(`h${heading[1].length}`);
+      appendInlineMarkdown(element, heading[2]);
+      container.append(element);
+      index += 1;
+      continue;
+    }
+    if (/^\s*(?:-{3,}|\*{3,}|_{3,})\s*$/.test(lines[index])) {
+      container.append(document.createElement('hr'));
+      index += 1;
+      continue;
+    }
+    if (/^\s*>\s?/.test(lines[index])) {
+      const quote = document.createElement('blockquote');
+      const quoteLines = [];
+      while (index < lines.length && /^\s*>\s?/.test(lines[index])) {
+        quoteLines.push(lines[index].replace(/^\s*>\s?/, ''));
+        index += 1;
+      }
+      renderSafeMarkdown(quote, quoteLines.join('\n'));
+      container.append(quote);
+      continue;
+    }
+    if (/^\s*[-+*]\s+/.test(lines[index])) {
       const list = document.createElement('ul');
-      while (index < lines.length && /^\s*[-*]\s+/.test(lines[index])) {
+      while (index < lines.length && /^\s*[-+*]\s+/.test(lines[index])) {
         const item = document.createElement('li');
-        appendInlineCode(item, lines[index].replace(/^\s*[-*]\s+/, ''));
+        const itemText = lines[index].replace(/^\s*[-+*]\s+/, '');
+        const task = itemText.match(/^\[([ xX])\]\s+(.*)$/);
+        if (task) {
+          const checkbox = document.createElement('input');
+          checkbox.type = 'checkbox';
+          checkbox.checked = task[1].toLowerCase() === 'x';
+          checkbox.disabled = true;
+          item.className = 'task-list-item';
+          item.append(checkbox);
+          appendInlineMarkdown(item, task[2]);
+        } else {
+          appendInlineMarkdown(item, itemText);
+        }
         list.append(item);
         index += 1;
       }
@@ -343,7 +380,7 @@ function renderSafeMarkdown(container, source) {
       const list = document.createElement('ol');
       while (index < lines.length && /^\s*\d+[.)]\s+/.test(lines[index])) {
         const item = document.createElement('li');
-        appendInlineCode(item, lines[index].replace(/^\s*\d+[.)]\s+/, ''));
+        appendInlineMarkdown(item, lines[index].replace(/^\s*\d+[.)]\s+/, ''));
         list.append(item);
         index += 1;
       }
@@ -351,20 +388,74 @@ function renderSafeMarkdown(container, source) {
       continue;
     }
     const paragraphLines = [];
-    while (index < lines.length && lines[index] && !lines[index].startsWith('```') &&
-      !/^\s*[-*]\s+/.test(lines[index]) && !/^\s*\d+[.)]\s+/.test(lines[index])) {
+    while (index < lines.length && lines[index] && !/^\s*```/.test(lines[index]) &&
+      !/^\s*(?:#{1,6}\s+|>\s?|[-+*]\s+|\d+[.)]\s+|(?:-{3,}|\*{3,}|_{3,})\s*$)/.test(lines[index])) {
       paragraphLines.push(lines[index++]);
     }
     if (paragraphLines.length) {
       const paragraph = document.createElement('p');
       paragraphLines.forEach((line, lineIndex) => {
         if (lineIndex) paragraph.append(document.createElement('br'));
-        appendInlineCode(paragraph, line);
+        appendInlineMarkdown(paragraph, line);
       });
       container.append(paragraph);
     } else {
       index += 1;
     }
+  }
+}
+
+function appendInlineMarkdown(parent, text) {
+  const tokenPattern = /(?<codeMark>`+)(?<codeText>[\s\S]*?)\k<codeMark>|!\[(?<imageAlt>[^\]]*)\]\((?<imageUrl>[^\s)]+)\)|\[(?<linkText>[^\]]+)\]\((?<linkUrl>[^\s)]+)(?:\s+["'](?<linkTitle>[^"']*)["'])?\)|(?<strongMark>\*\*|__)(?<strongText>.+?)\k<strongMark>|(?<strikeMark>~~)(?<strikeText>.+?)\k<strikeMark>|(?<!\w)(?<emMark>\*|_)(?!\s)(?<emText>.+?)(?<!\s)\k<emMark>(?!\w)/;
+  const match = tokenPattern.exec(text);
+  if (!match) {
+    appendInlineImagesAndLinks(parent, text.replace(/\\([\\`*_[\]{}()#+.!>~-])/g, '$1'));
+    return;
+  }
+
+  if (match.index) appendInlineMarkdown(parent, text.slice(0, match.index));
+  const token = match.groups;
+  if (token.codeMark) {
+    const code = document.createElement('code');
+    code.textContent = token.codeText;
+    parent.append(code);
+  } else if (token.imageUrl) {
+    const src = safeMarkdownUrl(token.imageUrl, false);
+    if (src) appendInlineImage(parent, src, token.imageAlt || 'Image');
+    else parent.append(document.createTextNode(match[0]));
+  } else if (token.linkUrl) {
+    const href = safeMarkdownUrl(token.linkUrl, true);
+    if (href) {
+      if (isImageUrl(href)) {
+        appendInlineImage(parent, href, token.linkText);
+      } else {
+        const link = document.createElement('a');
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        if (token.linkTitle) link.title = token.linkTitle;
+        appendInlineMarkdown(link, token.linkText);
+        parent.append(link);
+      }
+    } else {
+      parent.append(document.createTextNode(match[0]));
+    }
+  } else {
+    const element = document.createElement(token.strongMark ? 'strong' : token.strikeMark ? 'del' : 'em');
+    appendInlineMarkdown(element, token.strongText || token.strikeText || token.emText);
+    parent.append(element);
+  }
+  appendInlineMarkdown(parent, text.slice(match.index + match[0].length));
+}
+
+function safeMarkdownUrl(value, allowEmail = false) {
+  try {
+    const url = new URL(value, document.baseURI);
+    const protocols = allowEmail ? ['http:', 'https:', 'mailto:'] : ['http:', 'https:'];
+    if (!protocols.includes(url.protocol)) return null;
+    return url.href;
+  } catch {
+    return null;
   }
 }
 
@@ -377,29 +468,13 @@ function isImageUrl(url) {
   }
 }
 
-function isSafeUrl(url) {
-  try {
-    const parsed = new URL(url, document.baseURI);
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
-  } catch {
-    return false;
-  }
-}
-
-function appendInlineCode(parent, text) {
-  // Process inline code first by splitting on backticks
-  const codeParts = text.split('`');
-  codeParts.forEach((part, index) => {
-    if (index % 2 === 1) {
-      // Inside backticks - render as code
-      const code = document.createElement('code');
-      code.textContent = part;
-      parent.append(code);
-    } else {
-      // Outside backticks - process for images and links
-      appendInlineImagesAndLinks(parent, part);
-    }
-  });
+function appendInlineImage(parent, src, alt) {
+  const image = document.createElement('img');
+  image.src = src;
+  image.alt = alt;
+  image.className = 'inline-image';
+  image.loading = 'lazy';
+  parent.append(image);
 }
 
 function appendInlineImagesAndLinks(parent, text) {
@@ -418,13 +493,9 @@ function appendInlineImagesAndLinks(parent, text) {
       // Markdown image: ![alt](url)
       const alt = match[1] || '';
       const url = match[2];
-      if (isSafeUrl(url)) {
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = alt;
-        img.className = 'inline-image';
-        img.loading = 'lazy';
-        parent.append(img);
+      const src = safeMarkdownUrl(url);
+      if (src) {
+        appendInlineImage(parent, src, alt);
       } else {
         // Unsafe URL scheme - render as plain text
         parent.append(document.createTextNode(match[0]));
@@ -433,20 +504,21 @@ function appendInlineImagesAndLinks(parent, text) {
       // Markdown link: [text](url)
       const linkText = match[3];
       const url = match[4];
-      if (!isSafeUrl(url)) {
+      const href = safeMarkdownUrl(url, true);
+      if (!href) {
         // Unsafe URL scheme - render as plain text
         parent.append(document.createTextNode(match[0]));
-      } else if (isImageUrl(url)) {
+      } else if (isImageUrl(href)) {
         // If the link points to an image, render the image
         const img = document.createElement('img');
-        img.src = url;
+        img.src = href;
         img.alt = linkText;
         img.className = 'inline-image';
         img.loading = 'lazy';
         parent.append(img);
       } else {
         const link = document.createElement('a');
-        link.href = url;
+        link.href = href;
         link.textContent = linkText;
         link.target = '_blank';
         link.rel = 'noopener noreferrer';
@@ -463,12 +535,7 @@ function appendInlineImagesAndLinks(parent, text) {
         url = url.slice(0, -strippedCount);
       }
       if (isImageUrl(url)) {
-        const img = document.createElement('img');
-        img.src = url;
-        img.alt = 'Image';
-        img.className = 'inline-image';
-        img.loading = 'lazy';
-        parent.append(img);
+        appendInlineImage(parent, url, 'Image');
       } else {
         const link = document.createElement('a');
         link.href = url;
