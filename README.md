@@ -57,8 +57,9 @@ Assistant responses are rendered as safe Markdown. Supported formatting includes
 - Ordered, unordered, and task lists
 - Blockquotes and links
 - Fenced code blocks with language labels and a copy button
+- Images using Markdown syntax (`![alt text](https://...)`) or plain HTTPS URLs
 
-Raw HTML is displayed as text rather than injected into the page. Links are limited to HTTP, HTTPS, and email URLs and open in a new tab with opener access disabled.
+Raw HTML is displayed as text rather than injected into the page. Links are limited to HTTP, HTTPS, and email URLs and open in a new tab with opener access disabled. Images are limited to HTTPS URLs and data URIs for security.
 ## Receive responses through an external webhook
 
 The app can create a temporary public webhook for an agent or service to post responses back to the local chat. Install the Cloudflare Tunnel client on macOS with:
