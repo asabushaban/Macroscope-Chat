@@ -588,4 +588,4 @@ function appendCodeBlock(parent, codeText, language) {
 
 refreshStatus();
 pollInboundMessages();
-+setTimeout(function poll() { pollInboundMessages().finally(() => setTimeout(poll, 2_000)); }, 2_000);
+setTimeout(function poll() { pollInboundMessages().finally(() => setTimeout(poll, 2_000)); }, 2_000);
