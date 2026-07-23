@@ -1,6 +1,6 @@
 # Macroscope Chat
 
-A small, dependency-free local chat client for Macroscope Agent Webhooks. It uses Node.js built-ins and plain browser HTML, CSS, and JavaScript.
+A small, (mostly) dependency-free local chat client for Macroscope Agent Webhooks. It uses Node.js built-ins and plain browser HTML, CSS, and JavaScript.
 
 ## Requirements
 
